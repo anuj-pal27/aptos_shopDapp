@@ -51,13 +51,13 @@ export const Home = ({ data, loading }) => {
                 <p className="w-40 text-gray-400 font-normal text-[10px] text-left">
                   {card.description.split(" ").slice(0, 10).join(" ") + "..."}
                 </p>
-              </div>
+              </div>SOL
               <div className="flex justify-between gap-12 items-center w-full mt-5">
                 <div className="text-green-500">
                     <span className="text-green-600">
-                      {Math.round(card.price * 100 * 0.007) / 100}
+                      {card.price * 100000000}
                     </span>
-                    <span className="text-green-600 font-normal"> SOL</span>
+                    <span className="text-green-600 font-normal"> APT</span>
                 </div>
 
                 {itemInCart(card._id) ? (

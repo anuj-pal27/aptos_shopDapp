@@ -4,7 +4,7 @@ version = "1.0.0"
 authors = []
 
 [addresses]
-
+ShoppingDApp='957ed76d98b6750382383acdccc85407ba9cb9e8617d581cfda83a13822aa7e0'
 [dev-addresses]
 
 [dependencies.AptosFramework]

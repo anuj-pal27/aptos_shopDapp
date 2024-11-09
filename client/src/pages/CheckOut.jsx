@@ -1,40 +1,25 @@
-// import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-// import {
-//   LAMPORTS_PER_SOL,
-//   PublicKey,
-//   SystemProgram,
-//   Transaction,
-// } from "@solana/web3.js";
+
 import { Account, AccountAddress, Aptos, AptosConfig, Network, NetworkToNetworkName } from "@aptos-labs/ts-sdk";
 import { useState, useEffect } from "react";
 import { Buffer } from "buffer";
 import { Link } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { clear } from "../redux/Slices/CartSlice";
-// import { resetState } from "../redux/Slices/CartSlice"; // Uncomment this when implementing reset logic
-
-
-
-window.Buffer = Buffer;
-const APTOS_NETWORK =Network.DEVNET;
-const config = new AptosConfig({ network: APTOS_NETWORK });
-const aptos = new Aptos(config);
+import {useWallet} from "./WalletProvider"
+import { AptosClient, AptosAccount, TransactionBuilder} from "aptos";
 
 const CheckOut = () => {
+  const { account, isConnected } = useWallet();
+  const [product, setProduct] = useState(null); // Assume you have product details from cart
 
-
-
-
-
-  const dispatch = useDispatch();
+  window.Buffer = Buffer;
+  const APTOS_NETWORK =Network.DEVNET;
   const [toPublicKey, setToPublicKey] = useState(
     "0x957ed76d98b6750382383acdccc85407ba9cb9e8617d581cfda83a13822aa7e0"
   );
   const [amount, setAmount] = useState(0);
   const [statusMessage, setStatusMessage] = useState("");
-  const [loading, setLoading] = useState(false);
   const { cart } = useSelector((state) => state);
-  const [transactionHistory, setTransactionHistory] = useState([]);
 
   useEffect(() => {
     getItem();
@@ -48,99 +33,91 @@ const CheckOut = () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(cart),
+     
       });
-
+      console.log("cart-->",cart);
       if (!res.ok) {
         throw new Error("Network response was not ok");
       }
 
       const data = await res.json();
+      console.log(data);
       const total = data.orders.reduce((acc, curr) => acc + curr.price, 0);
+
       // setAmount(total); // Set the total amount directly
-      setAmount(Math.round(total * 100 * 0.007) / 100);
+      setAmount(Math.round(total));
     } catch (error) {
       console.error("Failed to fetch items:", error);
       setStatusMessage("Failed to fetch items from cart.");
     }
   };
 
-  // const sendTokens = async (to) => {
-  //   try {
-  //     // Validate inputs
-  //     const balanceInSOL = await connection.getBalance(
-  //       new PublicKey(wallet.publicKey)
-  //     );
-  //     const parsedAmount = parseFloat(amount);
+  
+    // Function to handle purchase
+    const handlePurchase = async (price) => {
+      if (!account || !account.address) {
+          alert("Please connect your wallet.");
+          return;
+      }
+      try {
+          const transactionPayload = {
+            type: "entry_function_payload",
+              function: "0x957ed76d98b6750382383acdccc85407ba9cb9e8617d581cfda83a13822aa7e0::ShoppingDApp::Marketplace.purchase",
+              type_arguments: [],
+              arguments: [
+                  "0x0b1495c33cb9d0de292ad1b27cf37ee3c968006aba1d11209566fb7eeef9eb2d",  // Replace with the seller's address
+                  account.address,           // Buyer’s address (connected wallet)
+                  BigInt(price * 100000000),          // Amount in APT to be transferred
+                
+              ]
+          };
+        // Build the transaction using the appropriate client method
+        const aptosClient = new AptosClient("https://fullnode.devnet.aptoslabs.com");
+        console.log("payload",transactionPayload)
+        const transaction = {
+          
+            sender: account.address,  // Set the sender's address directly
+            payload: transactionPayload,
+            gas_unit_price: 100,  // Adjust gas unit price as needed
+            max_gas_amount: 10000  // Adjust max gas amount as needed
+        };
 
-  //     if (isNaN(parsedAmount) || parsedAmount <= 0) {
-  //       setStatusMessage("Please enter a valid amount.");
-  //       return;
-  //     }
+        // Sign and submit the transaction
+        const response = await aptosClient.submitTransaction(account, transaction);
 
-  //     if (wallet.publicKey.toString() === to) {
-  //       setStatusMessage("You cannot send SOL to yourself.");
-  //       return;
-  //     }
+        // Wait for transaction confirmation
+        const transactionStatus = await aptosClient.waitForTransaction(response.hash);
 
-  //     if (balanceInSOL < parsedAmount * LAMPORTS_PER_SOL) {
-  //       setStatusMessage("Insufficient SOL balance.");
-  //       return;
-  //     }
-
-  //     const transaction = new Transaction().add(
-  //       SystemProgram.transfer({
-  //         fromPubkey: wallet.publicKey,
-  //         toPubkey: new PublicKey(to),
-  //         lamports: parsedAmount * LAMPORTS_PER_SOL,
-  //       })
-  //     );
-
-  //     setLoading(true); // Set loading state
-
-  //     const signature = await wallet.sendTransaction(transaction, connection);
-  //     // setStatusMessage(`Transaction successful! Signature: ${signature}`);
-  //     setStatusMessage(`Transaction successful!`);
-  //     dispatch(clear());
-
-  //     const transactionDetails = await fetch(`${import.meta.env.VITE_LOCALHOST}/payment`, {
-  //       method: "POST",
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //       },
-  //       body: JSON.stringify({
-  //         sender: wallet.publicKey.toString(),
-  //         receiver: to,
-  //         signature: signature,
-  //         priceInSol: amount,
-  //       }),
-  //     });
-
-  //     await fetch(`${import.meta.env.VITE_LOCALHOST}/orders`, {
-  //       method: "POST",
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //       },
-  //       body: JSON.stringify({ cart, sender: wallet.publicKey.toString() }),
-  //     });
-
-  //     const data1 = await transactionDetails.json();
-  //     setTransactionHistory(data1.payment);
-  //   } catch (error) {
-  //     console.error("Transaction error:", error);
-  //     // setStatusMessage(`Transaction failed: ${error.message}`);
-  //     setStatusMessage(`Transaction failed.`);
-  //   } finally {
-  //     setLoading(false); // Reset loading state
-  //   }
-  // };
-
+        if (transactionStatus.success) {
+            alert("Transaction successful!");
+        } else {
+            alert("Transaction failed. Please try again.");
+        }
+    } catch (error) {
+        console.error("Error making the transaction", error);
+        alert("Transaction failed. Please try again.");
+    }
+};
   
 
 
   return (
     <div>
- 
-      {/* <div className="flex flex-col gap-4 w-2/5 mx-auto  border-green-700 border-y-4 rounded-lg p-4 mt-12 bg-slate-100 shadow-2xl">
+              <div>
+            {isConnected ? (
+                <div>
+                    <h2>{}</h2>
+                    <p>Price: {amount} APT</p>
+                    <button onClick={() => handlePurchase(amount)}>
+                        Purchase Product
+                    </button>
+                </div>
+            ) : (
+                <p>Please connect your wallet to proceed.</p>
+            )}
+        </div>
+{/*  
+      <div className="flex flex-col gap-4 w-2/5 mx-auto  border-green-700 border-y-4 rounded-lg p-4 mt-12 bg-slate-100 shadow-2xl">
         <h1 className="text-3xl font-semibold text-center mb-4 mt-2">
           Make Payment
         </h1>
